@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kalp Animasyonu</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #000; overflow: hidden; }
+  canvas { display: block; width: 100vw; height: 100vh; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+const cv = document.getElementById("c");
+const ctx = cv.getContext("2d");
+let W, H, S;
+
+const PER_FRAME = 20;        // KÜÇÜLTÜKÇE YAVAŞLAR, BÜYÜTTÜKÇE HIZLANIR
+const HEART_Y = 40;          // kalbi yukarı kaydırır, altta yazıya yer kalır
+const TEXT_Y = -305;         // yazının dikey konumu
+
+const rnd = (a, b) => a + Math.random() * (b - a);
+const rgb = (r, g, b) => `rgb(${r * 255 | 0},${g * 255 | 0},${b * 255 | 0})`;
+
+function heart(a, scale) {
+  const x = 16 * Math.sin(a) ** 3 * scale;
+  const y = (13 * Math.cos(a) - 5 * Math.cos(2 * a) - 2 * Math.cos(3 * a) - Math.cos(4 * a)) * scale;
+  return [x, y];
+}
+
+function line(x1, y1, x2, y2, color, w) {
+  ctx.strokeStyle = color;
+  ctx.lineWidth = w * S;
+  ctx.beginPath();
+  ctx.moveTo(W / 2 + x1 * S, H / 2 - y1 * S);
+  ctx.lineTo(W / 2 + x2 * S, H / 2 - y2 * S);
+  ctx.stroke();
+}
+
+// "FOR U" yazısının piksellerini örnekleyip nokta listesi çıkarır
+function buildTextPoints() {
+  const tw = 700, th = 120;
+  const oc = document.createElement("canvas");
+  oc.width = tw; oc.height = th;
+  const o = oc.getContext("2d");
+  o.fillStyle = "#fff";
+  o.font = "bold 80px Arial, Helvetica, sans-serif";
+  o.textAlign = "center";
+  o.textBaseline = "middle";
+  o.fillText("F O R   U", tw / 2, th / 2);
+  const data = o.getImageData(0, 0, tw, th).data;
+  const pts = [];
+  for (let y = 0; y < th; y += 2) {
+    for (let x = 0; x < tw; x += 2) {
+      if (data[(y * tw + x) * 4 + 3] > 128) {
+        pts.push([x - tw / 2, TEXT_Y + (th / 2 - y)]);
+      }
+    }
+  }
+  return pts;
+}
+
+let textPts = buildTextPoints();
+const N1 = 10000, N2 = 3500, N3 = textPts.length * 3;
+let i = 0, j = 0, k = 0;
+
+function resize() {
+  const dpr = window.devicePixelRatio || 1;
+  W = innerWidth; H = innerHeight;
+  cv.width = W * dpr; cv.height = H * dpr;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  S = Math.min(W, H) / 700;
+  ctx.lineCap = "round";
+  ctx.fillStyle = "#000";
+  ctx.fillRect(0, 0, W, H);
+  i = j = k = 0;
+}
+
+function step1() {
+  const a = rnd(0, 2 * Math.PI);
+  const [x, y] = heart(a, rnd(0.5, 15.5));
+  const ang = Math.atan2(y, x) + rnd(-0.5, 0.5);
+  const len = rnd(4, 14);
+  line(x, y + HEART_Y, x + len * Math.cos(ang), y + HEART_Y + len * Math.sin(ang),
+       rgb(1, rnd(0.25, 0.55), rnd(0.65, 0.85)), rnd(0.5, 1.2));
+}
+
+function step2() {
+  const a = rnd(0, 2 * Math.PI);
+  const [x, y] = heart(a, 16);
+  const ang = Math.atan2(y, x) + rnd(-0.35, 0.35);
+  const len = rnd(18, 32);
+  line(x + rnd(-2, 2), y + HEART_Y + rnd(-2, 2),
+       x + len * Math.cos(ang), y + HEART_Y + len * Math.sin(ang),
+       rgb(1, rnd(0.45, 0.75), rnd(0.75, 0.95)), rnd(0.4, 0.9));
+}
+
+// Yazı: rastgele seçilen yazı noktalarından kısa çizgilerle birleşir
+function step3() {
+  const [px, py] = textPts[(Math.random() * textPts.length) | 0];
+  const ang = rnd(0, 2 * Math.PI);
+  const len = rnd(2, 6);
+  const x = px + rnd(-1, 1), y = py + rnd(-1, 1);
+  line(x, y, x + len * Math.cos(ang), y + len * Math.sin(ang),
+       rgb(1, rnd(0.25, 0.55), rnd(0.65, 0.85)), rnd(0.8, 1.6));
+}
+
+function frame() {
+  for (let n = 0; n < PER_FRAME; n++) {
+    if (i < N1) { step1(); i++; }
+    else if (j < N2) { step2(); j++; }
+    else if (k < N3) { step3(); k++; }
+  }
+  requestAnimationFrame(frame);
+}
+
+addEventListener("resize", resize);
+resize();
+frame();
+</script>
+</body>
+</html>
